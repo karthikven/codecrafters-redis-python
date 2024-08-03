@@ -73,17 +73,14 @@ def read_until_crlf(data: bytes, start: int = 0) -> tuple[bytes, int]:
         if data[index: index+2] == CRLF:
             return [data[start: index+2], index+2]
         index += 1
-    return [b'', len(data)]
+    return (b'', len(data))
 
-def parse_bulk_string_data_wrapper(data: bytes) -> bytes:
+def parse_bulk_string_data_wrapper(data: bytes) -> tuple[bytes, int]:
     start = 0
     # perform two consecutive read_until_crlf calls to get the bulk string
     _, first_crlf_index = read_until_crlf(data, start)
     _, second_crlf_index = read_until_crlf(data, first_crlf_index)
-    print("DATA IN PARSE BULK STRING WRAPPER: ", data[start: first_crlf_index + second_crlf_index], '\n')
-    print("FIRST CR LF INDEX: ", first_crlf_index)
-    print("SECOND CR LF INDEX: ", second_crlf_index)
-    return [data[start: first_crlf_index + second_crlf_index], first_crlf_index + second_crlf_index]
+    return (data[start: second_crlf_index], second_crlf_index)
 
 
 # functions to parse resp byte strings into RESPType datatype
@@ -109,7 +106,6 @@ def deserialize(data: bytes) -> RESPType:
     parser = RESP_PARSER.get(data[0])
 
     if not parser:
-        print(f"Unknown RESPType Indicator: {data}, {data[0]}")
         raise ValueError(f'Unknown RESPType Indicator: {data[0]}')
 
     data_to_parse = data
@@ -136,7 +132,7 @@ def parse_error(data: bytes) -> str:
 def parse_bulk_string(data: bytes) -> str:
     data_decode = data.decode('utf-8')
     data_split_up = data_decode.split("\r\n")
-    if data_split_up[0] == -1:
+    if data_split_up[0] == '-1':
         return None
     return data_split_up[1]
 
@@ -148,30 +144,22 @@ def parse_array(data: bytes) -> list:
     length_end = data.index(CRLF)
     length = int(data[1:length_end])
 
-    print("LENGTH: ", length)
-    print("LENGTH END: ", length_end)
-    print("DATA: ", data)
-
     if length == -1:
         return []
     arr = []
     start_index = length_end + 2
 
-    print("START INDEX: ", start_index)
-    print("DATA[START INDEX]: ", data[start_index])
-    print("ORD (BULK STRING): ", ord(BULK_STRING))
     for _ in range(length):
         element_type = data[start_index]
         if element_type == ord(BULK_STRING):
             to_parse, new_index = parse_bulk_string_data_wrapper(data[start_index:])
-            print(f"to_parse: {to_parse}")
             arr.append(deserialize(to_parse))
             start_index += new_index 
         else:
             to_parse, new_index = read_until_crlf(data, start_index)
             arr.append(deserialize(to_parse))
             start_index = new_index
-        if start_index >= 4:
+        if start_index >= len(data):
             break
     return arr
 
@@ -179,16 +167,16 @@ def parse_array(data: bytes) -> list:
 def main():
     # write tests for each case
     # test for simple string
-    # assert deserialize(serialize("PING")) == "PING"
-    # # test for error
-    # assert deserialize(serialize("ERR something went wrong")) == "ERR something went wrong"
-    # # test for integer
-    # assert deserialize(serialize(123)) == 123
+    assert deserialize(serialize("PING")) == "PING"
+    # test for error
+    assert deserialize(serialize("ERR something went wrong")) == "ERR something went wrong"
+    # test for integer
+    assert deserialize(serialize(123)) == 123
     # # test for bulk string
-    # assert deserialize(serialize("PING PONG PONG PONG")) == "PING PONG PONG PONG"
+    assert deserialize(serialize("PING PONG PONG PONG")) == "PING PONG PONG PONG"
     # # test for array
-    # assert deserialize(serialize(["PING PONG PONG PONG", 23, "OK", "PING", "PONG", "PONG", "PONG"])) == ["PING PONG PONG PONG", 23, "OK", "PING", "PONG", "PONG", "PONG"]
-    serialized_arr = serialize(["OKOK", 1223])
-    print(deserialize(serialized_arr))
+    assert deserialize(serialize(["PING PONG PONG PONG", 23, "OK", "PING", "PONG", "PONG", "PONG"])) == ["PING PONG PONG PONG", 23, "OK", "PING", "PONG", "PONG", "PONG"]
+    # serialized_arr = serialize(["OKOK", 1223, "PING", "PING PONG >>>", 66529])
+    # print(deserialize(serialized_arr))
 if __name__ == '__main__':
     main()
