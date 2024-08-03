@@ -1,26 +1,15 @@
 import asyncio
-
-
-def serialize_string_in_resp(inp: str):
-    len_of_str = len(inp)
-    output = f"${len_of_str}\r\n{inp}\r\n"
-    byte_output = output.encode('utf-8')
-    return byte_output
-
-def parse_request(req):
-    # convert byte string to regular string
-    string_data = req.decode('utf-8')
-    array_data = string_data.split("\r\n")
-    if len(array_data) > 3 and array_data[2].lower() == "echo":
-        return serialize_string_in_resp(array_data[4])
-    return serialize_string_in_resp("PONG")    
+from app.resp import deserialize, serialize
+from app.command_handler import command_dispatcher
+from app.store import Store
 
 async def handle_client(reader, writer):
+    store = Store()
     while True:
         data = await reader.read(100)
         if not data:
             break
-        to_send = parse_request(data)
+        to_send, store = command_dispatcher(data, store)
         writer.write(to_send)
         await writer.drain()
     writer.close()

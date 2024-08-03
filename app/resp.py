@@ -38,7 +38,7 @@ def serialize(data: RESPType) -> bytes:
         raise ValueError(f"Unsupported type for RESP serialization: {type(data)}")
     
 def serialize_simple_string(data: str) -> bytes:
-    if data not in ["PING", "OK"]:
+    if data not in ["PING", "OK", "PONG"]:
         raise ValueError(f"Unsupported simple string for RESP serialization: {data}")
     encoded_data = data.encode('utf-8')
     return SIMPLE_STRING + encoded_data + CRLF
