@@ -1,6 +1,7 @@
 from typing import Tuple
 from app.resp import deserialize, serialize, SIMPLE_STRING, BULK_STRING, ERROR, INTEGER, ARRAY
 from app.store import Store
+import time
 
 def command_dispatcher(data: bytes, store: Store) -> Tuple[bytes, Store]:
     """
@@ -28,12 +29,15 @@ def handle_echo(data: list, store: Store) -> Tuple[bytes, Store]:
 
 def handle_set(data: list, store: Store) -> Tuple[bytes, Store]:
     # get key and value from data
-    _, key, value = data
-    new_store = store.set(key, value)
+    _, key, value = data[0], data[1], data[2]
+    px = None
+    if len(data) > 3 and data[3].lower() == 'px':
+        px = int(data[4])
+    new_store = store.set(key, value, px)
     return serialize("OK"), new_store
 
 def handle_get(data: list, store: Store) -> Tuple[bytes, Store]:
-    _, key = data
+    _, key = data    
     value = store.get(key)
     return serialize(value if value is not None else None), store 
 
