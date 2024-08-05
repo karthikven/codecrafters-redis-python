@@ -11,7 +11,8 @@ def command_dispatcher(data: bytes, store: Store) -> Tuple[bytes, Store]:
         "PING": handle_ping,
         "ECHO": handle_echo,
         "SET": handle_set,
-        "GET": handle_get
+        "GET": handle_get,
+        "INFO": handle_info
     }
 
     # Deserialize the request
@@ -41,3 +42,8 @@ def handle_get(data: list, store: Store) -> Tuple[bytes, Store]:
     value = store.get(key)
     return serialize(value if value is not None else None), store 
 
+def handle_info(data: list, store: Store) -> Tuple[bytes, Store]:
+    command, _ = data
+    if command.lower() == 'info':
+        return serialize("role:master"), store
+    return None, store
