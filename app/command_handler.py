@@ -1,9 +1,8 @@
-from typing import Tuple
+from typing import Tuple, Any
 from app.resp import deserialize, serialize, SIMPLE_STRING, BULK_STRING, ERROR, INTEGER, ARRAY
 from app.store import Store
-import time
 
-def command_dispatcher(data: bytes, store: Store, replicaof: str) -> Tuple[bytes, Store]:
+def command_dispatcher(data: bytes, store: Store, server_details: dict[str, Any]) -> Tuple[bytes, Store]:
     """
     function that takes in a request as input, deserializes it, and then dispatches it to the appropriate handler
     """
@@ -15,24 +14,22 @@ def command_dispatcher(data: bytes, store: Store, replicaof: str) -> Tuple[bytes
         "INFO": handle_info
     }
 
-    # determine if master or replica
-    role = "master"
-    if replicaof:
-        role = "slave"
     # Deserialize the request
     deserialized_data = deserialize(data)
     command = deserialized_data[0]
 
-    return COMMAND_HANDLER_MAP[command](deserialized_data, store, role)
+    print("IN COMMAND DISPATCHER \n SERVER DETAILS: ", server_details)
 
-def handle_ping(data: list, store: Store, role: str) -> Tuple[bytes, Store]:
+    return COMMAND_HANDLER_MAP[command](deserialized_data, store, server_details)
+
+def handle_ping(data: list, store: Store, server_details: dict[str, Any]) -> Tuple[bytes, Store]:
     return serialize("PONG"), store
 
-def handle_echo(data: list, store: Store, role: str) -> Tuple[bytes, Store]:
+def handle_echo(data: list, store: Store, server_details: dict[str, Any]) -> Tuple[bytes, Store]:
     message = data[1]
     return serialize(message), store
 
-def handle_set(data: list, store: Store, role: str) -> Tuple[bytes, Store]:
+def handle_set(data: list, store: Store, server_details: dict[str, Any]) -> Tuple[bytes, Store]:
     # get key and value from data
     _, key, value = data[0], data[1], data[2]
     px = None
@@ -41,13 +38,17 @@ def handle_set(data: list, store: Store, role: str) -> Tuple[bytes, Store]:
     new_store = store.set(key, value, px)
     return serialize("OK"), new_store
 
-def handle_get(data: list, store: Store, role: str) -> Tuple[bytes, Store]:
+def handle_get(data: list, store: Store, server_details: dict[str, Any]) -> Tuple[bytes, Store]:
     _, key = data    
     value = store.get(key)
     return serialize(value if value is not None else None), store 
 
-def handle_info(data: list, store: Store, role: str) -> Tuple[bytes, Store]:
+def handle_info(data: list, store: Store, server_details: dict[str, Any]) -> Tuple[bytes, Store]:
     command, _ = data
     if command.lower() == 'info':
-        return serialize(f"role:{role}"), store
+        # determine if master or replica
+        role = "master" if not server_details.get("REPLICAOF") else "slave"
+        master_replid = server_details.get("master_replid")
+        master_repl_offset = server_details.get("master_repl_offset")
+        return serialize(f"role:{role}\nmaster_replid:{master_replid}\nmaster_repl_offset:{master_repl_offset}"), store
     return None, store
