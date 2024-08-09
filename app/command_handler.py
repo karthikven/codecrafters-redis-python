@@ -11,11 +11,9 @@ def command_dispatcher(data: bytes, store: Store, server_details: dict[str, Any]
         "ECHO": handle_echo,
         "SET": handle_set,
         "GET": handle_get,
-        "INFO": handle_info
+        "INFO": handle_info,
+        "REPLCONF": handle_repl_conf
     }
-
-    print("DATA: ", data)
-
     # Deserialize the request
     deserialized_data = deserialize(data)
     command = deserialized_data[0]
@@ -51,4 +49,12 @@ def handle_info(data: list, store: Store, server_details: dict[str, Any]) -> Tup
         master_replid = server_details.get("master_replid")
         master_repl_offset = server_details.get("master_repl_offset")
         return serialize(f"role:{role}\nmaster_replid:{master_replid}\nmaster_repl_offset:{master_repl_offset}"), store
+    return None, store
+
+def handle_repl_conf(data: list, store: Store, server_details: dict[str, Any]) -> Tuple[bytes, Store]:
+    print("REPLCONF: ", data)
+    command = data[0]
+    listening_port = data[2]
+    if command == "REPLCONF":
+        return serialize("OK"), store
     return None, store
