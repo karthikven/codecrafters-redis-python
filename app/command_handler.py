@@ -18,8 +18,6 @@ def command_dispatcher(data: bytes, store: Store, server_details: dict[str, Any]
     deserialized_data = deserialize(data)
     command = deserialized_data[0]
 
-    print("IN COMMAND DISPATCHER \n SERVER DETAILS: ", server_details)
-
     return COMMAND_HANDLER_MAP[command](deserialized_data, store, server_details)
 
 def handle_ping(data: list, store: Store, server_details: dict[str, Any]) -> Tuple[bytes, Store]:

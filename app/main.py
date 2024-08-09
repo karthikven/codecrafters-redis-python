@@ -2,6 +2,7 @@ import asyncio
 from app.command_handler import command_dispatcher
 from app.store import Store
 import argparse
+from app.replica_handler import handle_replica
 
 
 async def main():
@@ -16,6 +17,11 @@ async def main():
     REPLICAOF = args.replicaof
     master_replid = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"
     master_repl_offset = 0
+
+    print("REPLICAOF: ", REPLICAOF)
+
+    if REPLICAOF:
+        await handle_replica(REPLICAOF)
 
     async def handle_client(reader, writer):
         store = Store()
@@ -36,6 +42,6 @@ async def main():
     server = await asyncio.start_server(handle_client, HOST, PORT)
     async with server:
         await server.serve_forever()
-        
+
 if __name__ == "__main__":
     asyncio.run(main())
