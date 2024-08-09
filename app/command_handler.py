@@ -14,6 +14,8 @@ def command_dispatcher(data: bytes, store: Store, server_details: dict[str, Any]
         "INFO": handle_info
     }
 
+    print("DATA: ", data)
+
     # Deserialize the request
     deserialized_data = deserialize(data)
     command = deserialized_data[0]
