@@ -3,6 +3,7 @@ from app.command_handler import command_dispatcher
 from app.store import Store
 import argparse
 from app.replica_handler import handle_replica
+import base64
 
 
 async def main():
@@ -17,7 +18,7 @@ async def main():
     REPLICAOF = args.replicaof
     master_replid = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"
     master_repl_offset = 0
-    
+
     if REPLICAOF:
         await handle_replica(REPLICAOF)
 
@@ -32,8 +33,18 @@ async def main():
             data = await reader.read(100)
             if not data:
                 break
-            to_send, store = command_dispatcher(data, store, server_details)
-            writer.write(to_send)
+            to_send, store, rdb_flag = command_dispatcher(data, store, server_details)
+            if rdb_flag:
+                writer.write(to_send)
+                BULK_STRING = b'$'
+                CRLF = b'\r\n'
+                empty_rdb_in_base64 = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
+                binary_rdb = base64.b64decode(empty_rdb_in_base64)
+                len_binary_rdb = str(len(binary_rdb)).encode('utf-8')
+                rdb_to_send =  BULK_STRING + len_binary_rdb + CRLF + binary_rdb
+                writer.write(rdb_to_send)
+            else:
+                writer.write(to_send)
             await writer.drain()
         writer.close()
 
