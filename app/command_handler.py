@@ -12,7 +12,8 @@ def command_dispatcher(data: bytes, store: Store, server_details: dict[str, Any]
         "SET": handle_set,
         "GET": handle_get,
         "INFO": handle_info,
-        "REPLCONF": handle_repl_conf
+        "REPLCONF": handle_repl_conf,
+        "PSYNC": handle_psync
     }
     # Deserialize the request
     deserialized_data = deserialize(data)
@@ -52,9 +53,17 @@ def handle_info(data: list, store: Store, server_details: dict[str, Any]) -> Tup
     return None, store
 
 def handle_repl_conf(data: list, store: Store, server_details: dict[str, Any]) -> Tuple[bytes, Store]:
-    print("REPLCONF: ", data)
     command = data[0]
     listening_port = data[2]
     if command == "REPLCONF":
         return serialize("OK"), store
     return None, store
+
+def handle_psync(data: list, store: Store, server_details: dict[str, Any]) -> Tuple[bytes, Store]:
+    command = data[0]
+    if command == "PSYNC":
+        master_replid = server_details.get("master_replid")
+        response = f"FULLRESYNC {master_replid} 0"
+        return serialize(response), store
+    return None, store
+

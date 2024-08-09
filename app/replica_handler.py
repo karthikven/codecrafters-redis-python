@@ -19,7 +19,6 @@ async def handshake_with_master(reader, writer):
         data = await reader.read(100)
         if not data:
             break
-        print("IN HANDSHAKE WITH MASTER: ", data)
         if len(data) <= 10:
             deserialized_data = deserialize(data)
             if len(response_arr) == 0 and deserialized_data == "PONG":
