@@ -18,6 +18,7 @@ async def main():
     REPLICAOF = args.replicaof
     master_replid = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"
     master_repl_offset = 0
+    replicas_to_propagate_to = set()
 
     if REPLICAOF:
         await handle_replica(REPLICAOF)
@@ -33,7 +34,7 @@ async def main():
             data = await reader.read(100)
             if not data:
                 break
-            to_send, store, rdb_flag = command_dispatcher(data, store, server_details)
+            to_send, store, rdb_flag, to_propagate = command_dispatcher(data, store, server_details)
             if rdb_flag:
                 writer.write(to_send)
                 BULK_STRING = b'$'
@@ -43,8 +44,13 @@ async def main():
                 len_binary_rdb = str(len(binary_rdb)).encode('utf-8')
                 rdb_to_send =  BULK_STRING + len_binary_rdb + CRLF + binary_rdb
                 writer.write(rdb_to_send)
+                replicas_to_propagate_to.add(writer)
             else:
                 writer.write(to_send)
+                if to_propagate:
+                    for replica_writer in replicas_to_propagate_to:
+                        replica_writer.write(data)
+                        await replica_writer.drain()
             await writer.drain()
         writer.close()
 
